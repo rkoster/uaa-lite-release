@@ -1,6 +1,8 @@
 ---
 name: uaa
 
-dependencies: []
+dependencies:
+  - golang-1.26-linux
 
-files: []
+files:
+  - uaa-lite/**/*

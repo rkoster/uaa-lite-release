@@ -1,1 +1,7 @@
 set -e
+
+source /var/vcap/packages/golang-1.26-linux/bosh/compile.env
+
+cd ${BOSH_COMPILE_TARGET}/uaa-lite
+
+go build -o ${BOSH_INSTALL_TARGET}/bin/uaa-lite ./cmd/uaa-lite

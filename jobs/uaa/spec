@@ -1,8 +1,78 @@
 ---
 name: uaa
 
-templates: {}
+templates:
+  ctl.erb: bin/ctl
+  config.yml.erb: config/config.yml
+  tls_cert.pem.erb: config/tls_cert.pem
+  tls_key.pem.erb: config/tls_key.pem
 
-packages: []
+packages:
+  - uaa
+  - golang-1.26-linux
 
-properties: {}
+properties:
+  uaa.port:
+    description: "HTTPS port for UAA"
+    default: 8443
+
+  uaa.issuer:
+    description: "Token issuer URL (e.g., https://uaa.service.cf.internal:8443)"
+
+  uaa.tls.certificate:
+    description: "TLS certificate in PEM format"
+
+  uaa.tls.private_key:
+    description: "TLS private key in PEM format"
+
+  uaa.jwt.policy.active_key_id:
+    description: "Active signing key ID"
+    default: "key-1"
+
+  uaa.jwt.policy.keys:
+    description: |
+      Map of key_id to signing key configuration.
+      Example:
+        key-1:
+          signingKey: |
+            -----BEGIN RSA PRIVATE KEY-----
+            ...
+            -----END RSA PRIVATE KEY-----
+
+  uaa.jwt.policy.access_token_validity:
+    description: "Default access token validity in seconds"
+    default: 43200
+
+  uaa.jwt.policy.refresh_token_validity:
+    description: "Default refresh token validity in seconds"
+    default: 2592000
+
+  uaa.clients:
+    description: |
+      Map of OAuth client configurations.
+      Example:
+        bosh_cli:
+          secret: "bosh-cli-secret"
+          authorized_grant_types:
+            - password
+            - refresh_token
+          scope:
+            - openid
+            - bosh.admin
+          authorities:
+            - uaa.none
+          access_token_validity: 600
+          refresh_token_validity: 86400
+    default: {}
+
+  uaa.users:
+    description: |
+      Map of user configurations. Passwords are in plaintext and will be hashed on startup.
+      Example:
+        admin:
+          password: "admin-password"
+          email: "admin@example.com"
+          groups:
+            - bosh.admin
+            - openid
+    default: {}

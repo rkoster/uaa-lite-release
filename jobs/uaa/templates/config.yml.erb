@@ -1,0 +1,67 @@
+<%
+  require 'json'
+  
+  def yaml_escape(str)
+    str.to_s.gsub(/\n/, "\n    ")
+  end
+%>
+---
+server:
+  port: <%= p('uaa.port') %>
+  issuer: "<%= p('uaa.issuer') %>"
+
+tls:
+  certificate: |
+    <%= yaml_escape(p('uaa.tls.certificate')) %>
+  private_key: |
+    <%= yaml_escape(p('uaa.tls.private_key')) %>
+
+jwt:
+  active_key_id: "<%= p('uaa.jwt.policy.active_key_id') %>"
+  keys:
+<% p('uaa.jwt.policy.keys').each do |key_id, key_config| %>
+    <%= key_id %>:
+      signing_key: |
+        <%= yaml_escape(key_config['signingKey']) %>
+<% end %>
+  access_token_validity: <%= p('uaa.jwt.policy.access_token_validity') %>
+  refresh_token_validity: <%= p('uaa.jwt.policy.refresh_token_validity') %>
+
+clients:
+<% p('uaa.clients').each do |client_id, client_config| %>
+  <%= client_id %>:
+    secret: "<%= client_config['secret'] %>"
+    authorized_grant_types:
+<% (client_config['authorized_grant_types'] || []).each do |grant_type| %>
+      - <%= grant_type %>
+<% end %>
+<% if client_config['scope'] %>
+    scope:
+<% client_config['scope'].each do |scope| %>
+      - <%= scope %>
+<% end %>
+<% end %>
+<% if client_config['authorities'] %>
+    authorities:
+<% client_config['authorities'].each do |authority| %>
+      - <%= authority %>
+<% end %>
+<% end %>
+<% if client_config['access_token_validity'] %>
+    access_token_validity: <%= client_config['access_token_validity'] %>
+<% end %>
+<% if client_config['refresh_token_validity'] %>
+    refresh_token_validity: <%= client_config['refresh_token_validity'] %>
+<% end %>
+<% end %>
+
+users:
+<% p('uaa.users').each do |username, user_config| %>
+  <%= username %>:
+    password: "<%= user_config['password'] %>"
+    email: "<%= user_config['email'] %>"
+    groups:
+<% (user_config['groups'] || []).each do |group| %>
+      - <%= group %>
+<% end %>
+<% end %>
