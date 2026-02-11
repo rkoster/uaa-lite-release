@@ -744,6 +744,249 @@ var _ = Describe("RefreshTokenGrantHandler", func() {
 	})
 })
 
+var _ = Describe("ClientCredentialsGrantHandler", func() {
+	var (
+		handler        auth.GrantHandler
+		cfg            *config.Config
+		mockJWTManager *mocks.MockJWTManager
+		ctrl           *gomock.Controller
+	)
+
+	BeforeEach(func() {
+		// Create a temporary config file
+		tmpDir := GinkgoT().TempDir()
+		configPath := filepath.Join(tmpDir, "config.yml")
+		err := os.WriteFile(configPath, []byte(grantTestConfigYAML), 0644)
+		Expect(err).NotTo(HaveOccurred())
+
+		// Load configuration
+		cfg, err = config.Load(configPath)
+		Expect(err).NotTo(HaveOccurred())
+
+		// Create mock JWT manager
+		ctrl = gomock.NewController(GinkgoT())
+		mockJWTManager = mocks.NewMockJWTManager(ctrl)
+
+		// Create handler
+		handler = auth.NewClientCredentialsGrantHandler(cfg, mockJWTManager)
+	})
+
+	AfterEach(func() {
+		ctrl.Finish()
+	})
+
+	Describe("Handle", func() {
+		Context("when request is valid", func() {
+			It("should return a token response with access token only (no refresh token)", func() {
+				req := &auth.TokenRequest{
+					GrantType:    "client_credentials",
+					ClientID:     "service_client",
+					ClientSecret: "service-secret",
+				}
+
+				// Mock JWT manager calls - for client_credentials, client ID is used as user ID
+				mockJWTManager.EXPECT().
+					CreateAccessToken("service_client", "", "service_client", []string{"uaa.resource", "clients.read", "clients.write"}).
+					Return("access-token-123", nil)
+
+				resp, err := handler.Handle(req)
+
+				Expect(err).NotTo(HaveOccurred())
+				Expect(resp).NotTo(BeNil())
+				Expect(resp.AccessToken).To(Equal("access-token-123"))
+				Expect(resp.RefreshToken).To(BeEmpty()) // No refresh token for client_credentials
+				Expect(resp.TokenType).To(Equal("bearer"))
+				Expect(resp.ExpiresIn).To(Equal(43200))
+				Expect(resp.Scope).To(ConsistOf("uaa.resource", "clients.read", "clients.write"))
+			})
+
+			It("should use client-specific token validity when configured", func() {
+				req := &auth.TokenRequest{
+					GrantType:    "client_credentials",
+					ClientID:     "service_client_custom_validity",
+					ClientSecret: "service-custom-secret",
+				}
+
+				mockJWTManager.EXPECT().
+					CreateAccessToken("service_client_custom_validity", "", "service_client_custom_validity", []string{"uaa.resource"}).
+					Return("access-token-123", nil)
+
+				resp, err := handler.Handle(req)
+
+				Expect(err).NotTo(HaveOccurred())
+				Expect(resp.ExpiresIn).To(Equal(3600)) // Client-specific validity
+			})
+
+			It("should filter requested scopes against client authorities", func() {
+				req := &auth.TokenRequest{
+					GrantType:    "client_credentials",
+					ClientID:     "service_client",
+					ClientSecret: "service-secret",
+					Scope:        []string{"uaa.resource", "clients.read", "invalid.scope"},
+				}
+
+				mockJWTManager.EXPECT().
+					CreateAccessToken("service_client", "", "service_client", []string{"uaa.resource", "clients.read"}).
+					Return("access-token-123", nil)
+
+				resp, err := handler.Handle(req)
+
+				Expect(err).NotTo(HaveOccurred())
+				Expect(resp.Scope).To(ConsistOf("uaa.resource", "clients.read"))
+			})
+
+			It("should use all authorities when no scopes requested", func() {
+				req := &auth.TokenRequest{
+					GrantType:    "client_credentials",
+					ClientID:     "service_client",
+					ClientSecret: "service-secret",
+					Scope:        []string{},
+				}
+
+				mockJWTManager.EXPECT().
+					CreateAccessToken("service_client", "", "service_client", []string{"uaa.resource", "clients.read", "clients.write"}).
+					Return("access-token-123", nil)
+
+				resp, err := handler.Handle(req)
+
+				Expect(err).NotTo(HaveOccurred())
+				Expect(resp.Scope).To(ConsistOf("uaa.resource", "clients.read", "clients.write"))
+			})
+		})
+
+		Context("when client_id is missing", func() {
+			It("should return invalid_client error", func() {
+				req := &auth.TokenRequest{
+					GrantType:    "client_credentials",
+					ClientID:     "",
+					ClientSecret: "service-secret",
+				}
+
+				resp, err := handler.Handle(req)
+
+				Expect(err).To(HaveOccurred())
+				Expect(resp).To(BeNil())
+				oauth2Err, ok := err.(*auth.OAuth2Error)
+				Expect(ok).To(BeTrue())
+				Expect(oauth2Err.ErrorCode).To(Equal(auth.ErrorInvalidClient))
+			})
+		})
+
+		Context("when client_secret is missing", func() {
+			It("should return invalid_client error", func() {
+				req := &auth.TokenRequest{
+					GrantType:    "client_credentials",
+					ClientID:     "service_client",
+					ClientSecret: "",
+				}
+
+				resp, err := handler.Handle(req)
+
+				Expect(err).To(HaveOccurred())
+				Expect(resp).To(BeNil())
+				oauth2Err, ok := err.(*auth.OAuth2Error)
+				Expect(ok).To(BeTrue())
+				Expect(oauth2Err.ErrorCode).To(Equal(auth.ErrorInvalidClient))
+			})
+		})
+
+		Context("when client does not exist", func() {
+			It("should return invalid_client error", func() {
+				req := &auth.TokenRequest{
+					GrantType:    "client_credentials",
+					ClientID:     "invalid_client",
+					ClientSecret: "secret",
+				}
+
+				resp, err := handler.Handle(req)
+
+				Expect(err).To(HaveOccurred())
+				Expect(resp).To(BeNil())
+				oauth2Err, ok := err.(*auth.OAuth2Error)
+				Expect(ok).To(BeTrue())
+				Expect(oauth2Err.ErrorCode).To(Equal(auth.ErrorInvalidClient))
+			})
+		})
+
+		Context("when client secret is incorrect", func() {
+			It("should return invalid_client error", func() {
+				req := &auth.TokenRequest{
+					GrantType:    "client_credentials",
+					ClientID:     "service_client",
+					ClientSecret: "wrong-secret",
+				}
+
+				resp, err := handler.Handle(req)
+
+				Expect(err).To(HaveOccurred())
+				Expect(resp).To(BeNil())
+				oauth2Err, ok := err.(*auth.OAuth2Error)
+				Expect(ok).To(BeTrue())
+				Expect(oauth2Err.ErrorCode).To(Equal(auth.ErrorInvalidClient))
+			})
+		})
+
+		Context("when client is not authorized for client_credentials grant", func() {
+			It("should return unauthorized_client error", func() {
+				req := &auth.TokenRequest{
+					GrantType:    "client_credentials",
+					ClientID:     "bosh_cli", // Only has password and refresh_token grants
+					ClientSecret: "bosh-secret",
+				}
+
+				resp, err := handler.Handle(req)
+
+				Expect(err).To(HaveOccurred())
+				Expect(resp).To(BeNil())
+				oauth2Err, ok := err.(*auth.OAuth2Error)
+				Expect(ok).To(BeTrue())
+				Expect(oauth2Err.ErrorCode).To(Equal(auth.ErrorUnauthorizedClient))
+			})
+		})
+
+		Context("when no valid scopes are available", func() {
+			It("should return invalid_scope error when requested scopes don't match authorities", func() {
+				req := &auth.TokenRequest{
+					GrantType:    "client_credentials",
+					ClientID:     "service_client",
+					ClientSecret: "service-secret",
+					Scope:        []string{"invalid.scope", "another.invalid"},
+				}
+
+				resp, err := handler.Handle(req)
+
+				Expect(err).To(HaveOccurred())
+				Expect(resp).To(BeNil())
+				oauth2Err, ok := err.(*auth.OAuth2Error)
+				Expect(ok).To(BeTrue())
+				Expect(oauth2Err.ErrorCode).To(Equal(auth.ErrorInvalidScope))
+			})
+		})
+
+		Context("when JWT manager fails", func() {
+			It("should return server_error", func() {
+				req := &auth.TokenRequest{
+					GrantType:    "client_credentials",
+					ClientID:     "service_client",
+					ClientSecret: "service-secret",
+				}
+
+				mockJWTManager.EXPECT().
+					CreateAccessToken(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+					Return("", errors.New("signing failed"))
+
+				resp, err := handler.Handle(req)
+
+				Expect(err).To(HaveOccurred())
+				Expect(resp).To(BeNil())
+				oauth2Err, ok := err.(*auth.OAuth2Error)
+				Expect(ok).To(BeTrue())
+				Expect(oauth2Err.ErrorCode).To(Equal(auth.ErrorServerError))
+			})
+		})
+	})
+})
+
 var _ = Describe("Helper Functions", func() {
 	Describe("IsGrantTypeSupported", func() {
 		It("should return true for password grant", func() {
@@ -754,9 +997,13 @@ var _ = Describe("Helper Functions", func() {
 			Expect(auth.IsGrantTypeSupported("refresh_token")).To(BeTrue())
 		})
 
+		It("should return true for client_credentials grant", func() {
+			Expect(auth.IsGrantTypeSupported("client_credentials")).To(BeTrue())
+		})
+
 		It("should return false for unsupported grant types", func() {
 			Expect(auth.IsGrantTypeSupported("authorization_code")).To(BeFalse())
-			Expect(auth.IsGrantTypeSupported("client_credentials")).To(BeFalse())
+			Expect(auth.IsGrantTypeSupported("implicit")).To(BeFalse())
 			Expect(auth.IsGrantTypeSupported("invalid")).To(BeFalse())
 		})
 	})
@@ -791,6 +1038,17 @@ var _ = Describe("Helper Functions", func() {
 			mockJWT := mocks.NewMockJWTManager(ctrl)
 
 			handler, err := auth.NewGrantHandler("refresh_token", cfg, mockJWT)
+
+			Expect(err).NotTo(HaveOccurred())
+			Expect(handler).NotTo(BeNil())
+		})
+
+		It("should create ClientCredentialsGrantHandler for client_credentials grant", func() {
+			ctrl := gomock.NewController(GinkgoT())
+			defer ctrl.Finish()
+			mockJWT := mocks.NewMockJWTManager(ctrl)
+
+			handler, err := auth.NewGrantHandler("client_credentials", cfg, mockJWT)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(handler).NotTo(BeNil())
@@ -957,6 +1215,25 @@ clients:
       - test.scope
     authorities:
       - test.scope
+  service_client:
+    secret: "service-secret"
+    authorized_grant_types:
+      - client_credentials
+    scope:
+      - openid
+    authorities:
+      - uaa.resource
+      - clients.read
+      - clients.write
+  service_client_custom_validity:
+    secret: "service-custom-secret"
+    authorized_grant_types:
+      - client_credentials
+    scope:
+      - openid
+    authorities:
+      - uaa.resource
+    access_token_validity: 3600
 
 users:
   admin:

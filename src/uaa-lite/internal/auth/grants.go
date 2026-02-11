@@ -377,9 +377,128 @@ func (h *RefreshTokenGrantHandler) calculateScopes(userGroups, clientScopes, req
 	return effectiveScopes
 }
 
+// ClientCredentialsGrantHandler handles the client_credentials grant type
+type ClientCredentialsGrantHandler struct {
+	config     *config.Config
+	jwtManager JWTManager
+}
+
+// NewClientCredentialsGrantHandler creates a new client credentials grant handler
+func NewClientCredentialsGrantHandler(cfg *config.Config, jwtManager JWTManager) GrantHandler {
+	return &ClientCredentialsGrantHandler{
+		config:     cfg,
+		jwtManager: jwtManager,
+	}
+}
+
+// Handle processes a client credentials grant request
+func (h *ClientCredentialsGrantHandler) Handle(req *TokenRequest) (*TokenResponse, error) {
+	// Validate request
+	if req.ClientID == "" || req.ClientSecret == "" {
+		return nil, NewOAuth2Error(ErrorInvalidClient, "client_id and client_secret are required")
+	}
+
+	// Authenticate client
+	client, err := h.authenticateClient(req.ClientID, req.ClientSecret)
+	if err != nil {
+		return nil, err
+	}
+
+	// Verify client is authorized for client_credentials grant
+	if !h.isGrantTypeAuthorized(client, "client_credentials") {
+		return nil, NewOAuth2Error(ErrorUnauthorizedClient, "client is not authorized for client_credentials grant")
+	}
+
+	// For client_credentials grant, scopes come from client authorities
+	// If scopes are requested, they must be a subset of client authorities
+	effectiveScopes := h.calculateScopes(client.Authorities, req.Scope)
+	if len(effectiveScopes) == 0 {
+		return nil, NewOAuth2Error(ErrorInvalidScope, "no valid scopes available")
+	}
+
+	// Get token validity (use client-specific or global defaults)
+	accessTokenValidity := h.config.JWT.AccessTokenValidity
+	if client.AccessTokenValidity > 0 {
+		accessTokenValidity = client.AccessTokenValidity
+	}
+
+	// Create access token (no user context for client_credentials)
+	// Use client ID as both userID and username since there's no user
+	accessToken, err := h.jwtManager.CreateAccessToken(req.ClientID, "", req.ClientID, effectiveScopes)
+	if err != nil {
+		return nil, NewOAuth2Error(ErrorServerError, fmt.Sprintf("failed to create access token: %v", err))
+	}
+
+	// Build response (no refresh token for client_credentials grant)
+	return &TokenResponse{
+		AccessToken: accessToken,
+		TokenType:   "bearer",
+		ExpiresIn:   accessTokenValidity,
+		Scope:       effectiveScopes,
+	}, nil
+}
+
+// authenticateClient validates client credentials using constant-time comparison
+func (h *ClientCredentialsGrantHandler) authenticateClient(clientID, clientSecret string) (*config.ClientConfig, error) {
+	client, exists := h.config.Clients[clientID]
+	if !exists {
+		return nil, NewOAuth2Error(ErrorInvalidClient, "invalid client credentials")
+	}
+
+	// Use constant-time comparison to prevent timing attacks
+	if subtle.ConstantTimeCompare([]byte(client.Secret), []byte(clientSecret)) != 1 {
+		return nil, NewOAuth2Error(ErrorInvalidClient, "invalid client credentials")
+	}
+
+	return &client, nil
+}
+
+// isGrantTypeAuthorized checks if a client is authorized for a grant type
+func (h *ClientCredentialsGrantHandler) isGrantTypeAuthorized(client *config.ClientConfig, grantType string) bool {
+	for _, authorizedGrant := range client.AuthorizedGrantTypes {
+		if authorizedGrant == grantType {
+			return true
+		}
+	}
+	return false
+}
+
+// calculateScopes computes effective scopes for client credentials grant
+// For client_credentials, scopes come from client authorities
+func (h *ClientCredentialsGrantHandler) calculateScopes(authorities, requestedScopes []string) []string {
+	// Build set of client authorities
+	authoritySet := make(map[string]bool)
+	for _, authority := range authorities {
+		authoritySet[authority] = true
+	}
+
+	// If no scopes requested, use all authorities
+	if len(requestedScopes) == 0 {
+		return authorities
+	}
+
+	// Filter requested scopes to only those in authorities
+	var effectiveScopes []string
+	seen := make(map[string]bool)
+	for _, scope := range requestedScopes {
+		// Skip duplicates
+		if seen[scope] {
+			continue
+		}
+		seen[scope] = true
+
+		// Scope must be in client authorities
+		if authoritySet[scope] {
+			effectiveScopes = append(effectiveScopes, scope)
+		}
+	}
+
+	return effectiveScopes
+}
+
 // Helper function to check if a grant type is supported
 func IsGrantTypeSupported(grantType string) bool {
-	return grantType == "password" || grantType == "refresh_token"
+	return grantType == "password" || grantType == "refresh_token" || grantType == "client_credentials"
 }
 
 // Helper function to create a grant handler for a specific grant type
@@ -389,6 +508,8 @@ func NewGrantHandler(grantType string, cfg *config.Config, jwtManager JWTManager
 		return NewPasswordGrantHandler(cfg, jwtManager), nil
 	case "refresh_token":
 		return NewRefreshTokenGrantHandler(cfg, jwtManager), nil
+	case "client_credentials":
+		return NewClientCredentialsGrantHandler(cfg, jwtManager), nil
 	default:
 		return nil, errors.New("unsupported grant type")
 	}

@@ -20,8 +20,9 @@ type TokenHandler struct {
 func NewTokenHandler(cfg *config.Config, jwtManager auth.JWTManager) *TokenHandler {
 	// Initialize grant handlers for supported grant types
 	grantHandlers := map[string]auth.GrantHandler{
-		"password":      auth.NewPasswordGrantHandler(cfg, jwtManager),
-		"refresh_token": auth.NewRefreshTokenGrantHandler(cfg, jwtManager),
+		"password":           auth.NewPasswordGrantHandler(cfg, jwtManager),
+		"refresh_token":      auth.NewRefreshTokenGrantHandler(cfg, jwtManager),
+		"client_credentials": auth.NewClientCredentialsGrantHandler(cfg, jwtManager),
 	}
 
 	return &TokenHandler{

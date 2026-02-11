@@ -330,11 +330,65 @@ var _ = Describe("TokenHandler", func() {
 			})
 		})
 
+		Context("with client_credentials grant type", func() {
+			It("should successfully return access token without refresh token", func() {
+				// Setup mock expectations
+				mockJWTManager.EXPECT().
+					CreateAccessToken("service_client", "", "service_client", []string{"uaa.resource", "clients.read"}).
+					Return("access-token-123", nil)
+
+				// Create request
+				form := url.Values{}
+				form.Set("grant_type", "client_credentials")
+				form.Set("client_id", "service_client")
+				form.Set("client_secret", "service-secret")
+
+				req := httptest.NewRequest(http.MethodPost, "/oauth/token", strings.NewReader(form.Encode()))
+				req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+				// Handle request
+				handler.ServeHTTP(recorder, req)
+
+				// Verify response
+				Expect(recorder.Code).To(Equal(http.StatusOK))
+
+				var tokenResp auth.TokenResponse
+				err := json.Unmarshal(recorder.Body.Bytes(), &tokenResp)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(tokenResp.AccessToken).To(Equal("access-token-123"))
+				Expect(tokenResp.RefreshToken).To(BeEmpty()) // No refresh token for client_credentials
+				Expect(tokenResp.TokenType).To(Equal("bearer"))
+				Expect(tokenResp.Scope).To(ConsistOf("uaa.resource", "clients.read"))
+			})
+
+			It("should return error when client is not authorized for client_credentials", func() {
+				// Create request with client that doesn't have client_credentials grant
+				form := url.Values{}
+				form.Set("grant_type", "client_credentials")
+				form.Set("client_id", "bosh_cli")
+				form.Set("client_secret", "bosh-secret")
+
+				req := httptest.NewRequest(http.MethodPost, "/oauth/token", strings.NewReader(form.Encode()))
+				req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+				// Handle request
+				handler.ServeHTTP(recorder, req)
+
+				// Verify error response
+				Expect(recorder.Code).To(Equal(http.StatusBadRequest))
+
+				var oauth2Err auth.OAuth2Error
+				err := json.Unmarshal(recorder.Body.Bytes(), &oauth2Err)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(oauth2Err.ErrorCode).To(Equal(auth.ErrorUnauthorizedClient))
+			})
+		})
+
 		Context("with unsupported grant type", func() {
 			It("should return unsupported_grant_type error", func() {
 				// Create request with unsupported grant type
 				form := url.Values{}
-				form.Set("grant_type", "client_credentials")
+				form.Set("grant_type", "authorization_code")
 				form.Set("client_id", "bosh_cli")
 				form.Set("client_secret", "bosh-secret")
 
@@ -642,6 +696,16 @@ clients:
     authorities:
       - "config.admin"
     access_token_validity: 7200
+
+  service_client:
+    secret: "service-secret"
+    authorized_grant_types:
+      - "client_credentials"
+    scope:
+      - "openid"
+    authorities:
+      - "uaa.resource"
+      - "clients.read"
 
 users:
   admin:
