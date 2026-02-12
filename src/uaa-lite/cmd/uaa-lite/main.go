@@ -104,6 +104,9 @@ func createRouter(cfg *config.Config, jwtManager auth.JWTManager) *mux.Router {
 	infoHandler := handlers.NewInfoHandler(cfg.Server.Issuer)
 	router.Handle("/info", infoHandler).Methods(http.MethodGet)
 
+	// Login endpoint (same as info, used by BOSH CLI to get prompts)
+	router.Handle("/login", infoHandler).Methods(http.MethodGet)
+
 	// Token endpoint
 	tokenHandler := handlers.NewTokenHandler(cfg, jwtManager)
 	router.Handle("/oauth/token", tokenHandler).Methods(http.MethodPost)
