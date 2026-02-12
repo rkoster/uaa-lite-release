@@ -3,11 +3,3 @@ check process uaa
   start program "/var/vcap/jobs/uaa/bin/ctl start"
   stop program "/var/vcap/jobs/uaa/bin/ctl stop"
   group vcap
-  
-  if failed
-    host 127.0.0.1
-    port <%= p('uaa.port') %>
-    protocol https
-    request "/healthz"
-    with timeout 10 seconds
-  then restart

@@ -60,7 +60,7 @@ var _ = Describe("TokenHandler", func() {
 			It("should successfully return tokens with form-encoded credentials", func() {
 				// Setup mock expectations
 				mockJWTManager.EXPECT().
-					CreateAccessToken(gomock.Any(), "admin", "bosh_cli", []string{"bosh.admin"}).
+					CreateAccessTokenWithOptions(gomock.Any(), "admin", "bosh_cli", []string{"bosh.admin"}, auth.TokenOptions{GrantType: "password"}).
 					Return("access-token-123", nil)
 
 				mockJWTManager.EXPECT().
@@ -99,7 +99,7 @@ var _ = Describe("TokenHandler", func() {
 			It("should successfully return tokens with Basic Auth credentials", func() {
 				// Setup mock expectations
 				mockJWTManager.EXPECT().
-					CreateAccessToken(gomock.Any(), "admin", "bosh_cli", []string{"bosh.admin"}).
+					CreateAccessTokenWithOptions(gomock.Any(), "admin", "bosh_cli", []string{"bosh.admin"}, auth.TokenOptions{GrantType: "password"}).
 					Return("access-token-123", nil)
 
 				mockJWTManager.EXPECT().
@@ -136,7 +136,7 @@ var _ = Describe("TokenHandler", func() {
 			It("should handle multiple scopes separated by spaces", func() {
 				// Setup mock expectations
 				mockJWTManager.EXPECT().
-					CreateAccessToken(gomock.Any(), "admin", "bosh_cli", []string{"bosh.admin", "bosh.read"}).
+					CreateAccessTokenWithOptions(gomock.Any(), "admin", "bosh_cli", []string{"bosh.admin", "bosh.read"}, auth.TokenOptions{GrantType: "password"}).
 					Return("access-token-123", nil)
 
 				mockJWTManager.EXPECT().
@@ -250,7 +250,7 @@ var _ = Describe("TokenHandler", func() {
 					}, nil)
 
 				mockJWTManager.EXPECT().
-					CreateAccessToken("d788455f-4dfc-5d6f-8059-1b3a228f2cba", "admin", "bosh_cli", []string{"bosh.admin"}).
+					CreateAccessTokenWithOptions("d788455f-4dfc-5d6f-8059-1b3a228f2cba", "admin", "bosh_cli", []string{"bosh.admin"}, auth.TokenOptions{GrantType: "refresh_token"}).
 					Return("new-access-token", nil)
 
 				// Create request
@@ -334,7 +334,7 @@ var _ = Describe("TokenHandler", func() {
 			It("should successfully return access token without refresh token", func() {
 				// Setup mock expectations
 				mockJWTManager.EXPECT().
-					CreateAccessToken("service_client", "", "service_client", []string{"uaa.resource", "clients.read"}).
+					CreateAccessTokenWithOptions("service_client", "", "service_client", []string{"uaa.resource", "clients.read"}, auth.TokenOptions{GrantType: "client_credentials", Authorities: []string{"uaa.resource", "clients.read"}}).
 					Return("access-token-123", nil)
 
 				// Create request
@@ -533,7 +533,7 @@ var _ = Describe("TokenHandler", func() {
 			It("should use default scopes from user and client", func() {
 				// Setup mock expectations - the grant handler will calculate default scopes
 				mockJWTManager.EXPECT().
-					CreateAccessToken(gomock.Any(), "admin", "bosh_cli", gomock.Any()).
+					CreateAccessTokenWithOptions(gomock.Any(), "admin", "bosh_cli", gomock.Any(), auth.TokenOptions{GrantType: "password"}).
 					Return("access-token-123", nil)
 
 				mockJWTManager.EXPECT().

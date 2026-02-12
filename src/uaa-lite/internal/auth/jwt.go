@@ -10,14 +10,24 @@ import (
 
 	"github.com/cloudfoundry/uaa-lite/internal/config"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 //go:generate go run go.uber.org/mock/mockgen -destination=mocks/mock_jwt_manager.go -package=mocks . JWTManager
+
+// TokenOptions contains optional parameters for token creation
+type TokenOptions struct {
+	GrantType   string   // The OAuth2 grant type used
+	Authorities []string // Authorities for client_credentials grants
+}
 
 // JWTManager handles JWT token creation and validation
 type JWTManager interface {
 	// CreateAccessToken creates an access token with the given claims
 	CreateAccessToken(userID, username, clientID string, scopes []string) (string, error)
+
+	// CreateAccessTokenWithOptions creates an access token with additional options
+	CreateAccessTokenWithOptions(userID, username, clientID string, scopes []string, opts TokenOptions) (string, error)
 
 	// CreateRefreshToken creates a refresh token
 	CreateRefreshToken(userID, username, clientID string) (string, error)
@@ -46,14 +56,23 @@ func NewJWTManager(cfg *config.Config) JWTManager {
 
 // CreateAccessToken creates an access token with the given claims
 func (m *jwtManager) CreateAccessToken(userID, username, clientID string, scopes []string) (string, error) {
+	return m.CreateAccessTokenWithOptions(userID, username, clientID, scopes, TokenOptions{})
+}
+
+// CreateAccessTokenWithOptions creates an access token with additional options
+func (m *jwtManager) CreateAccessTokenWithOptions(userID, username, clientID string, scopes []string, opts TokenOptions) (string, error) {
 	now := time.Now()
 	expiry := now.Add(time.Duration(m.config.JWT.AccessTokenValidity) * time.Second)
 
 	claims := &Claims{
-		UserID:   userID,
-		UserName: username,
-		ClientID: clientID,
-		Scope:    scopes,
+		UserID:      userID,
+		UserName:    username,
+		ClientID:    clientID,
+		Scope:       scopes,
+		JTI:         uuid.New().String(),
+		AZP:         clientID,
+		GrantType:   opts.GrantType,
+		Authorities: opts.Authorities,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    m.config.Server.Issuer,
 			Subject:   userID,
@@ -92,6 +111,8 @@ func (m *jwtManager) CreateRefreshToken(userID, username, clientID string) (stri
 		UserName: username,
 		ClientID: clientID,
 		Scope:    []string{}, // Refresh tokens don't have scopes
+		JTI:      uuid.New().String(),
+		AZP:      clientID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    m.config.Server.Issuer,
 			Subject:   userID,

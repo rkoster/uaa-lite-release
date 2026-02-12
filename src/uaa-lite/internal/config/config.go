@@ -6,6 +6,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -222,7 +223,15 @@ func validateJWT(jwt *JWTConfig) error {
 
 // parseRSAPrivateKey parses a PEM-encoded RSA private key
 func parseRSAPrivateKey(pemData string) (*rsa.PrivateKey, error) {
-	block, _ := pem.Decode([]byte(pemData))
+	// Normalize line endings and strip leading indentation from PEM lines
+	s := strings.ReplaceAll(pemData, "\r\n", "\n")
+	lines := strings.Split(s, "\n")
+	for i, l := range lines {
+		lines[i] = strings.TrimLeft(l, " \t")
+	}
+	cleaned := strings.Join(lines, "\n")
+
+	block, _ := pem.Decode([]byte(cleaned))
 	if block == nil {
 		return nil, errors.New("failed to parse PEM block")
 	}

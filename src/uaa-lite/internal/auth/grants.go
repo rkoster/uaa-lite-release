@@ -124,7 +124,9 @@ func (h *PasswordGrantHandler) Handle(req *TokenRequest) (*TokenResponse, error)
 	// but is not used here as the token's expiration is set during creation
 
 	// Create access token
-	accessToken, err := h.jwtManager.CreateAccessToken(user.ID, username, req.ClientID, effectiveScopes)
+	accessToken, err := h.jwtManager.CreateAccessTokenWithOptions(user.ID, username, req.ClientID, effectiveScopes, TokenOptions{
+		GrantType: "password",
+	})
 	if err != nil {
 		return nil, NewOAuth2Error(ErrorServerError, fmt.Sprintf("failed to create access token: %v", err))
 	}
@@ -300,7 +302,9 @@ func (h *RefreshTokenGrantHandler) Handle(req *TokenRequest) (*TokenResponse, er
 	}
 
 	// Create new access token
-	accessToken, err := h.jwtManager.CreateAccessToken(claims.UserID, claims.UserName, req.ClientID, effectiveScopes)
+	accessToken, err := h.jwtManager.CreateAccessTokenWithOptions(claims.UserID, claims.UserName, req.ClientID, effectiveScopes, TokenOptions{
+		GrantType: "refresh_token",
+	})
 	if err != nil {
 		return nil, NewOAuth2Error(ErrorServerError, fmt.Sprintf("failed to create access token: %v", err))
 	}
@@ -424,7 +428,10 @@ func (h *ClientCredentialsGrantHandler) Handle(req *TokenRequest) (*TokenRespons
 
 	// Create access token (no user context for client_credentials)
 	// Use client ID as both userID and username since there's no user
-	accessToken, err := h.jwtManager.CreateAccessToken(req.ClientID, "", req.ClientID, effectiveScopes)
+	accessToken, err := h.jwtManager.CreateAccessTokenWithOptions(req.ClientID, "", req.ClientID, effectiveScopes, TokenOptions{
+		GrantType:   "client_credentials",
+		Authorities: client.Authorities,
+	})
 	if err != nil {
 		return nil, NewOAuth2Error(ErrorServerError, fmt.Sprintf("failed to create access token: %v", err))
 	}

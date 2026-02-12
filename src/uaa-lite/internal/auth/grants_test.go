@@ -58,7 +58,7 @@ var _ = Describe("PasswordGrantHandler", func() {
 
 				// Mock JWT manager calls
 				mockJWTManager.EXPECT().
-					CreateAccessToken(gomock.Any(), "admin", "bosh_cli", []string{"bosh.admin"}).
+					CreateAccessTokenWithOptions(gomock.Any(), "admin", "bosh_cli", []string{"bosh.admin"}, auth.TokenOptions{GrantType: "password"}).
 					Return("access-token-123", nil)
 
 				mockJWTManager.EXPECT().
@@ -87,7 +87,7 @@ var _ = Describe("PasswordGrantHandler", func() {
 				}
 
 				mockJWTManager.EXPECT().
-					CreateAccessToken(gomock.Any(), "admin", "config_server", []string{"config.admin"}).
+					CreateAccessTokenWithOptions(gomock.Any(), "admin", "config_server", []string{"config.admin"}, auth.TokenOptions{GrantType: "password"}).
 					Return("access-token-123", nil)
 
 				mockJWTManager.EXPECT().
@@ -111,7 +111,7 @@ var _ = Describe("PasswordGrantHandler", func() {
 				}
 
 				mockJWTManager.EXPECT().
-					CreateAccessToken(gomock.Any(), "admin", "bosh_cli", []string{"bosh.admin", "bosh.read"}).
+					CreateAccessTokenWithOptions(gomock.Any(), "admin", "bosh_cli", []string{"bosh.admin", "bosh.read"}, auth.TokenOptions{GrantType: "password"}).
 					Return("access-token-123", nil)
 
 				mockJWTManager.EXPECT().
@@ -135,7 +135,7 @@ var _ = Describe("PasswordGrantHandler", func() {
 				}
 
 				mockJWTManager.EXPECT().
-					CreateAccessToken(gomock.Any(), "admin", "bosh_cli", []string{"bosh.admin", "bosh.read"}).
+					CreateAccessTokenWithOptions(gomock.Any(), "admin", "bosh_cli", []string{"bosh.admin", "bosh.read"}, auth.TokenOptions{GrantType: "password"}).
 					Return("access-token-123", nil)
 
 				mockJWTManager.EXPECT().
@@ -409,7 +409,7 @@ var _ = Describe("RefreshTokenGrantHandler", func() {
 
 				// Mock CreateAccessToken
 				mockJWTManager.EXPECT().
-					CreateAccessToken(adminUser.ID, "admin", "bosh_cli", []string{"bosh.admin"}).
+					CreateAccessTokenWithOptions(adminUser.ID, "admin", "bosh_cli", []string{"bosh.admin"}, auth.TokenOptions{GrantType: "refresh_token"}).
 					Return("new-access-token-789", nil)
 
 				resp, err := handler.Handle(req)
@@ -445,7 +445,7 @@ var _ = Describe("RefreshTokenGrantHandler", func() {
 					}, nil)
 
 				mockJWTManager.EXPECT().
-					CreateAccessToken(adminUser.ID, "admin", "bosh_cli", []string{"bosh.admin", "bosh.read"}).
+					CreateAccessTokenWithOptions(adminUser.ID, "admin", "bosh_cli", []string{"bosh.admin", "bosh.read"}, auth.TokenOptions{GrantType: "refresh_token"}).
 					Return("new-access-token-789", nil)
 
 				resp, err := handler.Handle(req)
@@ -476,7 +476,7 @@ var _ = Describe("RefreshTokenGrantHandler", func() {
 					}, nil)
 
 				mockJWTManager.EXPECT().
-					CreateAccessToken(adminUser.ID, "admin", "config_server", []string{"config.admin"}).
+					CreateAccessTokenWithOptions(adminUser.ID, "admin", "config_server", []string{"config.admin"}, auth.TokenOptions{GrantType: "refresh_token"}).
 					Return("new-access-token-789", nil)
 
 				resp, err := handler.Handle(req)
@@ -786,7 +786,7 @@ var _ = Describe("ClientCredentialsGrantHandler", func() {
 
 				// Mock JWT manager calls - for client_credentials, client ID is used as user ID
 				mockJWTManager.EXPECT().
-					CreateAccessToken("service_client", "", "service_client", []string{"uaa.resource", "clients.read", "clients.write"}).
+					CreateAccessTokenWithOptions("service_client", "", "service_client", []string{"uaa.resource", "clients.read", "clients.write"}, auth.TokenOptions{GrantType: "client_credentials", Authorities: []string{"uaa.resource", "clients.read", "clients.write"}}).
 					Return("access-token-123", nil)
 
 				resp, err := handler.Handle(req)
@@ -808,7 +808,7 @@ var _ = Describe("ClientCredentialsGrantHandler", func() {
 				}
 
 				mockJWTManager.EXPECT().
-					CreateAccessToken("service_client_custom_validity", "", "service_client_custom_validity", []string{"uaa.resource"}).
+					CreateAccessTokenWithOptions("service_client_custom_validity", "", "service_client_custom_validity", []string{"uaa.resource"}, auth.TokenOptions{GrantType: "client_credentials", Authorities: []string{"uaa.resource"}}).
 					Return("access-token-123", nil)
 
 				resp, err := handler.Handle(req)
@@ -826,7 +826,7 @@ var _ = Describe("ClientCredentialsGrantHandler", func() {
 				}
 
 				mockJWTManager.EXPECT().
-					CreateAccessToken("service_client", "", "service_client", []string{"uaa.resource", "clients.read"}).
+					CreateAccessTokenWithOptions("service_client", "", "service_client", []string{"uaa.resource", "clients.read"}, auth.TokenOptions{GrantType: "client_credentials", Authorities: []string{"uaa.resource", "clients.read", "clients.write"}}).
 					Return("access-token-123", nil)
 
 				resp, err := handler.Handle(req)
@@ -844,7 +844,7 @@ var _ = Describe("ClientCredentialsGrantHandler", func() {
 				}
 
 				mockJWTManager.EXPECT().
-					CreateAccessToken("service_client", "", "service_client", []string{"uaa.resource", "clients.read", "clients.write"}).
+					CreateAccessTokenWithOptions("service_client", "", "service_client", []string{"uaa.resource", "clients.read", "clients.write"}, auth.TokenOptions{GrantType: "client_credentials", Authorities: []string{"uaa.resource", "clients.read", "clients.write"}}).
 					Return("access-token-123", nil)
 
 				resp, err := handler.Handle(req)
@@ -972,7 +972,7 @@ var _ = Describe("ClientCredentialsGrantHandler", func() {
 				}
 
 				mockJWTManager.EXPECT().
-					CreateAccessToken(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+					CreateAccessTokenWithOptions(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 					Return("", errors.New("signing failed"))
 
 				resp, err := handler.Handle(req)

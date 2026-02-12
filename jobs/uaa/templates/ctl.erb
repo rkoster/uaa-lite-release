@@ -24,7 +24,7 @@ case $1 in
     
     exec chpst -u vcap:vcap \
       /var/vcap/packages/uaa/bin/uaa-lite \
-        -config /var/vcap/jobs/uaa/config/config.yml \
+        /var/vcap/jobs/uaa/config/config.yml \
       >> ${LOG_DIR}/uaa.stdout.log \
       2>> ${LOG_DIR}/uaa.stderr.log &
     

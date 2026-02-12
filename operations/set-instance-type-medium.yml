@@ -1,0 +1,5 @@
+---
+# Ops file to set bosh instance group vm_type to `medium`
+- type: replace
+  path: /instance_groups/name=bosh/vm_type?
+  value: medium

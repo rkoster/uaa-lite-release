@@ -56,6 +56,21 @@ func (mr *MockJWTManagerMockRecorder) CreateAccessToken(userID, username, client
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAccessToken", reflect.TypeOf((*MockJWTManager)(nil).CreateAccessToken), userID, username, clientID, scopes)
 }
 
+// CreateAccessTokenWithOptions mocks base method.
+func (m *MockJWTManager) CreateAccessTokenWithOptions(userID, username, clientID string, scopes []string, opts auth.TokenOptions) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateAccessTokenWithOptions", userID, username, clientID, scopes, opts)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateAccessTokenWithOptions indicates an expected call of CreateAccessTokenWithOptions.
+func (mr *MockJWTManagerMockRecorder) CreateAccessTokenWithOptions(userID, username, clientID, scopes, opts any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAccessTokenWithOptions", reflect.TypeOf((*MockJWTManager)(nil).CreateAccessTokenWithOptions), userID, username, clientID, scopes, opts)
+}
+
 // CreateRefreshToken mocks base method.
 func (m *MockJWTManager) CreateRefreshToken(userID, username, clientID string) (string, error) {
 	m.ctrl.T.Helper()
