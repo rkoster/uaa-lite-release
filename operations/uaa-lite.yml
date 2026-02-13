@@ -72,6 +72,12 @@
             authorities: [bosh.admin]
             scope: []
             override: true
+          director_config_server:
+            secret: ((director_config_server_client_secret))
+            authorized_grant_types:
+            - client_credentials
+            authorities:
+            - config_server.admin
         users:
           admin:
             password: ((admin_password))

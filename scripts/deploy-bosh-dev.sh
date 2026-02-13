@@ -13,11 +13,13 @@ Environment variables used:
   DEPLOYMENT_NAME - optional (default: bosh)
   INTERNAL_IP - optional (default: 10.244.0.2)
   VARS_STORE - optional (default: creds.yml)
+  SKIP_CONFIG_SERVER - optional (default: false) - set to true to skip config-server deployment
 
 This script will:
   - Clone https://github.com/cloudfoundry/bosh-deployment into a temp dir
   - Create and upload a dev release from the repository root
   - Deploy the bosh director using bosh-deployment + operations/uaa-lite.yml + misc/bosh-dev.yml
+  - Deploy config-server with director as a client (unless SKIP_CONFIG_SERVER=true)
 EOF
 }
 
@@ -32,6 +34,7 @@ BOSH_DEPLOYMENT_REPO="https://github.com/cloudfoundry/bosh-deployment.git"
 DEPLOYMENT_NAME="${DEPLOYMENT_NAME:-bosh}"
 INTERNAL_IP="${INTERNAL_IP:-10.244.0.2}"
 VARS_STORE="${VARS_STORE:-creds.yml}"
+SKIP_CONFIG_SERVER="${SKIP_CONFIG_SERVER:-false}"
 
 cleanup() {
   rm -rf "$TEMP_DIR"
@@ -55,9 +58,13 @@ bosh upload-release --dir .
 echo "Deploying director using bosh-deployment and operations/uaa-lite.yml"
 BOSH_CMD=(bosh -n deploy "$TEMP_DIR/bosh-deployment/bosh.yml" -d "$DEPLOYMENT_NAME")
 BOSH_CMD+=( -o "$TEMP_DIR/bosh-deployment/bosh-lite.yml" )
-  BOSH_CMD+=( -o "$ROOT_DIR/operations/uaa-lite.yml" )
-  BOSH_CMD+=( -o "$ROOT_DIR/operations/set-instance-type-medium.yml" )
+BOSH_CMD+=( -o "$ROOT_DIR/operations/uaa-lite.yml" )
+BOSH_CMD+=( -o "$ROOT_DIR/operations/set-instance-type-medium.yml" )
 BOSH_CMD+=( -o "$TEMP_DIR/bosh-deployment/misc/bosh-dev.yml" )
+if [ "$SKIP_CONFIG_SERVER" != "true" ]; then
+  echo "Including config-server in deployment"
+  BOSH_CMD+=( -o "$TEMP_DIR/bosh-deployment/misc/config-server.yml" )
+fi
 BOSH_CMD+=( -v internal_ip="$INTERNAL_IP" )
 BOSH_CMD+=( -v director_name="${DEPLOYMENT_NAME}-dev" )
 BOSH_CMD+=( --vars-store="$VARS_STORE" )

@@ -47,7 +47,9 @@
   (p('uaa.clients') || {}).each do |client_id, client_config|
     c = {}
     c['secret'] = client_config && client_config['secret']
-    c['authorized_grant_types'] = coerce_array(client_config && client_config['authorized_grant_types'])
+    # Handle both 'authorized_grant_types' and 'authorized-grant-types' (for BOSH ops file compatibility)
+    grant_types = client_config && (client_config['authorized_grant_types'] || client_config['authorized-grant-types'])
+    c['authorized_grant_types'] = coerce_array(grant_types)
     cs = coerce_array(client_config && client_config['scope'])
     c['scope'] = cs unless cs.empty?
     ca = coerce_array(client_config && client_config['authorities'])
