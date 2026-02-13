@@ -1,12 +1,14 @@
 ---
 # Ops file to add uaa-lite to a BOSH director
 
-# Add uaa-lite release (assumes dev release uploaded or available by name)
+# Add uaa-lite release
 - type: replace
   path: /releases/-
   value:
     name: uaa-lite
-    version: latest
+    version: "1"
+    url: "https://bosh.io/d/github.com/rkoster/uaa-lite-release?v=1"
+    sha1: sha256:fc9246cf23ace8ad59f461835e4bfc44f2e71a317a3fb1cf81d889cf347f47be
 
 # Switch director user management to UAA
 - type: replace
