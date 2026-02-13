@@ -1,0 +1,29 @@
+name: uaa-lite
+version: "1"
+commit_hash: 4b896cf
+uncommitted_changes: false
+jobs:
+- name: uaa
+  version: 42bbfcbc33494eedf5d2e20e58f2022e42fe770ba155adcbbd82ecb29ebb8712
+  fingerprint: 42bbfcbc33494eedf5d2e20e58f2022e42fe770ba155adcbbd82ecb29ebb8712
+  sha1: sha256:7cf1ed6ffa5d1b22c47dfae5b00ff9388c5c82e55c1b9cb2645af6e0a817785d
+  packages:
+  - uaa
+  - golang-1.26-linux
+packages:
+- name: golang-1.26-linux
+  version: 8f8128af0520fb107b1f9b339fc0a79eeb70b16efd67bc0e41d770798b2543e0
+  fingerprint: 8f8128af0520fb107b1f9b339fc0a79eeb70b16efd67bc0e41d770798b2543e0
+  sha1: sha256:a50891830c3f12cda471e5d9c3d757d868c4d0a599d64b3968f557502f4ea420
+  dependencies: []
+- name: uaa
+  version: e73c6bf18a646a77f2c123521227a027cb56c0774a1fee25241c61bdc7a6a9b8
+  fingerprint: e73c6bf18a646a77f2c123521227a027cb56c0774a1fee25241c61bdc7a6a9b8
+  sha1: sha256:90eed62c19fb4361d3455afaf434632001995a06bc5e3dd46f991d5b3b66a222
+  dependencies:
+  - golang-1.26-linux
+license:
+  version: eefa533b44473426f0d39cb7de4a5de1342863955201ca83ddaefe4a0c96d174
+  fingerprint: eefa533b44473426f0d39cb7de4a5de1342863955201ca83ddaefe4a0c96d174
+  sha1: sha256:3aef822e04e8d41549d9bdaec75824b1ef3e27db0e7783e8529cff28b6868e2d
+no_compression: false
